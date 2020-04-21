@@ -129,18 +129,19 @@ std::tuple<void*, size_t> ImageImporter::EncodeRLE(const int32_t* pixels, uint32
     };
 
     auto src = pixels;
-    auto buffer = (uint8_t*)std::malloc((height * 2) + (width * height * 16));
-    if (buffer == nullptr)
+    //auto buffer = (uint8_t*)std::malloc((height * 2) + (width * height * 16));
+    auto buffer = std::vector<uint8_t>((height * 2) + (width * height * 16));
+    if (buffer.data() == nullptr)
     {
         throw std::bad_alloc();
     }
 
-    std::fill_n(buffer, (height * 2) + (width * height * 16), 0x00);
-    auto yOffsets = (uint16_t*)buffer;
-    auto dst = buffer + (height * 2);
+    std::fill_n(buffer.data(), (height * 2) + (width * height * 16), 0x00);
+    auto yOffsets = (uint16_t*)buffer.data();
+    auto dst = buffer.data() + (height * 2);
     for (uint32_t y = 0; y < height; y++)
     {
-        yOffsets[y] = (uint16_t)(dst - buffer);
+        yOffsets[y] = (uint16_t)(dst - buffer.data());
 
         auto previousCode = (RLECode*)nullptr;
         auto currentCode = (RLECode*)dst;
@@ -213,13 +214,16 @@ std::tuple<void*, size_t> ImageImporter::EncodeRLE(const int32_t* pixels, uint32
         }
     }
 
-    auto bufferLength = (size_t)(dst - buffer);
-    buffer = (uint8_t*)realloc(buffer, bufferLength);
-    if (buffer == nullptr)
+    auto bufferLength = (size_t)(dst - buffer.data());
+    buffer.resize(bufferLength);
+    if (buffer.data() == nullptr)
     {
         throw std::bad_alloc();
     }
-    return std::make_tuple(buffer, bufferLength);
+
+    auto rbuf = (uint8_t*)std::malloc(bufferLength);
+    std::memcpy(rbuf, buffer.data(), bufferLength);
+    return std::make_tuple(rbuf, bufferLength);
 }
 
 int32_t ImageImporter::CalculatePaletteIndex(
